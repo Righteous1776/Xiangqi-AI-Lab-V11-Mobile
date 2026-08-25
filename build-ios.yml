@@ -1,0 +1,44 @@
+name: Build iOS IPA (unsigned)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-ios.yml'
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build device app without signing
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project XiangqiAILabV11.xcodeproj \
+            -scheme XiangqiAILabV11 \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$APP"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry Xiangqi_AI_Lab_V11_iOS_unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Xiangqi-AI-Lab-V11-iOS-unsigned-IPA
+          path: ios/Xiangqi_AI_Lab_V11_iOS_unsigned.ipa
+          if-no-files-found: error
